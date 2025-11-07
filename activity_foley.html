@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Foley Catheter Insertion Sequencer</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Inter font -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+            min-height: 100vh;
+        }
+        /* Custom Styles for Drag and Drop */
+        .step-card {
+            cursor: grab;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+            border-left: 5px solid #007bff; /* Primary color hint */
+        }
+        .step-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+        }
+        .drop-zone {
+            min-height: 60px;
+            border: 2px dashed #ccc;
+            background-color: #fff;
+            transition: all 0.1s ease-in-out;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 4px;
+        }
+        .drop-zone.drag-over {
+            border-color: #10b981; /* Tailwind green-500 */
+            background-color: #d1fae5; /* Tailwind green-100 */
+        }
+        .result-icon {
+            margin-left: auto;
+            font-size: 1.5rem;
+        }
+        .correct {
+            border-color: #10b981; /* Green */
+            background-color: #d1fae5;
+        }
+        .incorrect {
+            border-color: #ef4444; /* Red */
+            background-color: #fee2e2;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div id="app" class="max-w-7xl mx-auto">
+
+        <header class="text-center mb-10 p-6 bg-white rounded-xl shadow-lg">
+            <h1 class="text-4xl font-bold text-blue-800">Foley Catheter Insertion: Sequencer Challenge</h1>
+            <p class="mt-2 text-gray-600">Drag and drop the steps into the correct numerical order (1 through 20).</p>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            <!-- Card Bank (Draggable Items) -->
+            <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg border-t-4 border-blue-500">
+                <h2 class="text-2xl font-semibold mb-4 text-blue-700">Available Steps (Unsorted)</h2>
+                <div id="card-bank" class="space-y-3">
+                    <!-- Steps will be dynamically loaded here -->
+                </div>
+            </div>
+
+            <!-- Sequence Target (Drop Zones) -->
+            <div class="lg:col-span-2">
+                <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-green-500">
+                    <h2 class="text-2xl font-semibold mb-4 text-green-700">Procedure Sequence</h2>
+                    <div id="sequence-target" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Drop zones will be dynamically loaded here -->
+                    </div>
+                </div>
+
+                <!-- Controls and Feedback -->
+                <div class="mt-6 flex flex-col sm:flex-row justify-center gap-4">
+                    <button id="check-button"
+                        class="px-8 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition duration-150 shadow-md transform hover:scale-[1.01]">
+                        Check Sequence
+                    </button>
+                    <button id="reset-button"
+                        class="px-8 py-3 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 transition duration-150 shadow-md transform hover:scale-[1.01]">
+                        Reset Game
+                    </button>
+                </div>
+
+                <div id="feedback" class="mt-6 p-4 text-center text-lg rounded-lg shadow-md hidden"></div>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const STEPS = [
+            // The steps are structured as: { id: correct_order_number, text: "Procedure Step Description" }
+            { id: 1, text: "Explain the procedure to the patient and obtain consent" },
+            { id: 2, text: "Gather all necessary supplies and gloves" },
+            { id: 3, text: "Position the patient lying on their back with legs spread apart" },
+            { id: 4, text: "Wash hands and put on sterile gloves" },
+            { id: 5, text: "Drape the patient with a sterile cover, exposing the genital area" },
+            { id: 6, text: "Drape the area with sterile drapes to establish a sterile field" },
+            { id: 7, text: "Clean the external genitalia with antiseptic solution" },
+            { id: 8, text: "Hold the penis perpendicular to the body and retract the foreskin if present" },
+            { id: 9, text: "Clean the urinary meatus with antiseptic swabs from front to back" },
+            { id: 10, text: "Lubricate the tip of the Foley catheter" },
+            { id: 11, text: "Gently insert the catheter into the urethral opening, advancing until urine begins to flow" },
+            { id: 12, text: "Advance the catheter a few centimeters more to ensure proper placement in the bladder" },
+            { id: 13, text: "Inflate the balloon with sterile water to secure the catheter in place" },
+            { id: 14, text: "Gently pull the catheter back to seat the balloon against the bladder neck" },
+            { id: 15, text: "Attach the catheter to a collection bag and ensure it is positioned below the bladder level" },
+            { id: 16, text: "Secure the catheter to the patient's thigh to prevent tension or tugging" },
+            { id: 17, text: "Check for proper urine flow and ensure the collection system is functioning properly" },
+            { id: 18, text: "Replace and secure the patient's clothing and drapes" },
+            { id: 19, text: "Remove gloves and perform hand hygiene" },
+            { id: 20, text: "Document the procedure, including the size of the catheter used and any relevant findings" }
+        ];
+
+        const cardBank = document.getElementById('card-bank');
+        const sequenceTarget = document.getElementById('sequence-target');
+        const checkButton = document.getElementById('check-button');
+        const resetButton = document.getElementById('reset-button');
+        const feedbackEl = document.getElementById('feedback');
+        let currentDragCardId = null;
+
+        // Utility function to shuffle an array (Fisher-Yates)
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // --- Drag and Drop Handlers ---
+
+        function dragStart(event) {
+            // Store the ID of the dragged element (which is the correct step ID)
+            currentDragCardId = event.target.dataset.stepId;
+            event.dataTransfer.setData('text/plain', currentDragCardId);
+            setTimeout(() => event.target.classList.add('opacity-40'), 0);
+        }
+
+        function dragEnd(event) {
+            event.target.classList.remove('opacity-40');
+        }
+
+        function dragOver(event) {
+            event.preventDefault(); // Necessary to allow dropping
+            // Add visual feedback to the drop zone
+            const dropZone = event.currentTarget.closest('.drop-zone');
+            if (dropZone) {
+                dropZone.classList.add('drag-over');
+            }
+        }
+
+        function dragLeave(event) {
+            // Remove visual feedback from the drop zone
+            const dropZone = event.currentTarget.closest('.drop-zone');
+            if (dropZone) {
+                dropZone.classList.remove('drag-over');
+            }
+        }
+
+        function drop(event) {
+            event.preventDefault();
+            const dropZone = event.currentTarget;
+            dropZone.classList.remove('drag-over');
+
+            const draggedId = event.dataTransfer.getData('text/plain');
+            const draggedCard = document.querySelector(`[data-step-id="${draggedId}"]`);
+
+            // Prevent dropping a card into an already occupied zone
+            if (dropZone.querySelector('.step-card')) {
+                // If there is already a card, move it back to the card bank
+                const existingCard = dropZone.querySelector('.step-card');
+                existingCard.remove();
+                cardBank.appendChild(existingCard);
+            }
+
+            // Move the new card into the drop zone
+            if (draggedCard) {
+                dropZone.appendChild(draggedCard);
+                // Clear any previous feedback colors on the zone
+                dropZone.classList.remove('correct', 'incorrect');
+                // Remove existing result icon
+                const existingIcon = dropZone.querySelector('.result-icon');
+                if(existingIcon) existingIcon.remove();
+            }
+        }
+
+        // --- Rendering Functions ---
+
+        function createStepCard(step) {
+            const card = document.createElement('div');
+            card.className = 'step-card p-3 rounded-lg bg-blue-50 text-gray-800 text-sm font-medium';
+            card.setAttribute('draggable', 'true');
+            card.setAttribute('data-step-id', step.id); // The correct order number is the ID
+            card.textContent = step.text;
+
+            card.addEventListener('dragstart', dragStart);
+            card.addEventListener('dragend', dragEnd);
+            return card;
+        }
+
+        function createDropZone(index) {
+            const container = document.createElement('div');
+            container.className = 'flex items-start gap-2'; // Wrapper for number and zone
+
+            const numberEl = document.createElement('div');
+            numberEl.className = 'w-10 h-10 flex-shrink-0 flex items-center justify-center bg-blue-500 text-white font-bold rounded-full text-lg shadow-md';
+            numberEl.textContent = index;
+
+            const dropZone = document.createElement('div');
+            dropZone.className = 'drop-zone flex-grow p-2 rounded-lg';
+            dropZone.setAttribute('data-target-id', index);
+
+            dropZone.addEventListener('dragover', dragOver);
+            dropZone.addEventListener('dragleave', dragLeave);
+            dropZone.addEventListener('drop', drop);
+
+            container.appendChild(numberEl);
+            container.appendChild(dropZone);
+            return container;
+        }
+
+        function initializeGame() {
+            // Clear existing elements
+            cardBank.innerHTML = '';
+            sequenceTarget.innerHTML = '';
+            feedbackEl.classList.add('hidden');
+            feedbackEl.textContent = '';
+
+            // 1. Create Drop Zones (1 through 20)
+            for (let i = 1; i <= 20; i++) {
+                sequenceTarget.appendChild(createDropZone(i));
+            }
+
+            // 2. Create and Shuffle Step Cards
+            const shuffledSteps = shuffleArray([...STEPS]); // Clone and shuffle
+            shuffledSteps.forEach(step => {
+                cardBank.appendChild(createStepCard(step));
+            });
+        }
+
+        // --- Game Logic ---
+
+        function checkSequence() {
+            let correctCount = 0;
+            const dropZones = sequenceTarget.querySelectorAll('.drop-zone');
+            let allDropped = true;
+
+            dropZones.forEach(zone => {
+                const stepCard = zone.querySelector('.step-card');
+                const targetId = parseInt(zone.dataset.targetId);
+                zone.classList.remove('correct', 'incorrect');
+
+                // Remove existing result icon
+                const existingIcon = zone.querySelector('.result-icon');
+                if(existingIcon) existingIcon.remove();
+
+                if (stepCard) {
+                    const droppedId = parseInt(stepCard.dataset.stepId);
+
+                    // Check if the dropped step ID matches the target zone ID
+                    if (droppedId === targetId) {
+                        zone.classList.add('correct');
+                        correctCount++;
+                        // Add checkmark icon (&#x2714; - heavy check mark)
+                        const icon = document.createElement('span');
+                        icon.className = 'result-icon text-green-600';
+                        icon.innerHTML = '&#x2714;';
+                        zone.appendChild(icon);
+                    } else {
+                        zone.classList.add('incorrect');
+                        // Add X icon (&#x2718; - heavy ballot X)
+                        const icon = document.createElement('span');
+                        icon.className = 'result-icon text-red-600';
+                        icon.innerHTML = '&#x2718;';
+                        zone.appendChild(icon);
+                    }
+                } else {
+                    allDropped = false;
+                    zone.classList.remove('correct', 'incorrect'); // Clear feedback if empty
+                }
+            });
+
+            // Display Feedback
+            feedbackEl.classList.remove('hidden');
+            let message = '';
+            let scoreClass = '';
+            let emoji = '';
+
+            if (!allDropped) {
+                message = "Please drag all 20 steps into the sequence target before checking!";
+                scoreClass = 'bg-yellow-100 text-yellow-800';
+                emoji = '&#x26A0;'; // Warning sign
+            } else if (correctCount === 20) {
+                message = `Perfect! You correctly sequenced all 20 steps. Outstanding work!`;
+                scoreClass = 'bg-green-100 text-green-800';
+                emoji = '&#x1F3C6;'; // Trophy
+            } else {
+                const percentage = Math.round((correctCount / 20) * 100);
+                message = `You got ${correctCount} out of 20 steps correct (${percentage}%). Use the red 'X' and green check marks to guide your corrections!`;
+                scoreClass = 'bg-blue-100 text-blue-800';
+                emoji = '&#x1F4A1;'; // Idea bulb
+            }
+
+            feedbackEl.className = `mt-6 p-4 text-center text-lg rounded-lg shadow-md ${scoreClass}`;
+            feedbackEl.innerHTML = `<span class="text-2xl mr-2">${emoji}</span> ${message}`;
+        }
+
+        // --- Event Listeners and Initialization ---
+
+        checkButton.addEventListener('click', checkSequence);
+        resetButton.addEventListener('click', initializeGame);
+
+        // Initialize the game when the window loads
+        window.onload = initializeGame;
+
+    </script>
+</body>
+</html>
